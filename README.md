@@ -120,7 +120,7 @@ docker-compose ps
 | **Grafana** | http://localhost:3000 | admin/admin | Дашборды метрик |
 | **Prometheus** | http://localhost:9090 | - | Сырые метрики |
 | **pgAdmin** | http://localhost:8081 | admin@pizza.local/admin | Управление БД |
-| **cAdvisor** | http://localhost:8082 | - | Мониторинг контейнеров |
+| **cAdvisor** | http://localhost:8083 | - | Мониторинг контейнеров |
 | **Node Exporter** | http://localhost:9100 | - | Системные метрики |
 
 #### 📈 Дашборды Grafana:

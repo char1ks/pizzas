@@ -53,7 +53,8 @@ services:
     image: confluentinc/cp-kafka:7.4.1
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_started
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -75,30 +76,41 @@ services:
       # JVM Settings for Kafka - с direct buffer memory
       KAFKA_HEAP_OPTS: '-Xmx1G -Xms1G -XX:MaxDirectMemorySize=512M'
       KAFKA_JVM_PERFORMANCE_OPTS: '-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -Djava.awt.headless=true -XX:+HeapDumpOnOutOfMemoryError -XX:NativeMemoryTracking=summary'
+      # Zookeeper connection timeout settings
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 60000
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 60000
     volumes:
       - kafka-data:/var/lib/kafka/data
     networks:
       - pizza-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 30s
+      timeout: 15s
       retries: 10
+      start_period: 60s
 
   # Kafka UI for monitoring events
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      # Connection timeout settings
+      KAFKA_CLUSTERS_0_PROPERTIES_CONNECTIONS_MAX_IDLE_MS: 60000
+      KAFKA_CLUSTERS_0_PROPERTIES_REQUEST_TIMEOUT_MS: 60000
     networks:
       - pizza-network
+    restart: unless-stopped
 
   # Prometheus Monitoring
   prometheus:
@@ -195,7 +207,7 @@ services:
     container_name: cadvisor
     privileged: true
     ports:
-      - "8082:8080"
+      - "8083:8080"  # Changed from 8082 to avoid conflict
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:rw

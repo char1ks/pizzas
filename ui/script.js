@@ -616,7 +616,7 @@ function setupMonitoringUrls() {
             { id: 'grafana-link', port: '3000' },
             { id: 'prometheus-link', port: '9090' },
             { id: 'pgadmin-link', port: '8081' },
-            { id: 'cadvisor-link', port: '8082' },
+            { id: 'cadvisor-link', port: '8083' },
             { id: 'node-exporter-link', port: '9100' }
         ];
         
@@ -639,7 +639,7 @@ function setupMonitoringUrls() {
             { id: 'grafana-link', url: 'http://localhost:3000' },
             { id: 'prometheus-link', url: 'http://localhost:9090' },
             { id: 'pgadmin-link', url: 'http://localhost:8081' },
-            { id: 'cadvisor-link', url: 'http://localhost:8082' },
+            { id: 'cadvisor-link', url: 'http://localhost:8083' },
             { id: 'node-exporter-link', url: 'http://localhost:9100' }
         ];
         
