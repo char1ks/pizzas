@@ -422,6 +422,14 @@ class OrderService(BaseService):
                     INSERT INTO orders.outbox_events (aggregate_id, event_type, event_data)
                     VALUES (%s, %s, %s::jsonb)
                 """, (order_id, 'OrderStatusChanged', json.dumps(event_data)))
+                
+                self.logger.info(
+                    "📤 OrderStatusChanged event added to outbox",
+                    order_id=order_id,
+                    new_status=new_status,
+                    reason=reason,
+                    outbox_event="Status change event queued for publishing"
+                )
         
         return True
     
