@@ -176,7 +176,7 @@ services:
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
       # Configuration for running behind nginx proxy
       SCRIPT_NAME: '/pgadmin'
-      PGADMIN_CONFIG_X_FRAME_OPTIONS: 'SAMEORIGIN'
+      PGADMIN_CONFIG_X_FRAME_OPTIONS: '"SAMEORIGIN"'
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'False'
     ports:
       - "8081:80"
