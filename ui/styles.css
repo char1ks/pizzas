@@ -692,7 +692,7 @@ section {
 
 .log-entry {
     display: grid;
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto auto auto 1fr;
     gap: var(--spacing-md);
     padding: var(--spacing-sm) 0;
     border-bottom: 1px solid var(--border-primary);
@@ -706,6 +706,59 @@ section {
 
 .timestamp {
     color: var(--text-muted);
+}
+
+.service {
+    color: var(--primary-teal);
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    background: rgba(20, 184, 166, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+/* Service-specific colors */
+.service.service_frontend_service {
+    color: #3B82F6;
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.service.service_order_service {
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.service.service_payment_service {
+    color: #F59E0B;
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.service.service_notification_service {
+    color: #8B5CF6;
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.service.service_payment_mock {
+    color: #EF4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.service.service_frontend_ui {
+    color: #06B6D4;
+    background: rgba(6, 182, 212, 0.1);
+    border-color: rgba(6, 182, 212, 0.3);
+}
+
+.service.service_system {
+    color: #6B7280;
+    background: rgba(107, 114, 128, 0.1);
+    border-color: rgba(107, 114, 128, 0.3);
 }
 
 .event-type {
@@ -864,6 +917,11 @@ section {
     .log-entry {
         grid-template-columns: 1fr;
         gap: var(--spacing-xs);
+    }
+    
+    .log-entry .service {
+        font-size: 10px;
+        padding: 1px 4px;
     }
     
     .toast {

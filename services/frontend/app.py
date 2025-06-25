@@ -354,29 +354,76 @@ class FrontendService(BaseService):
         
         @self.app.route('/api/v1/stats', methods=['GET'])
         def get_stats():
-            """Get service statistics"""
+            """Get frontend service statistics"""
             try:
-                with self.db.get_cursor() as cursor:
-                    cursor.execute("SET search_path TO frontend, public")
-                    cursor.execute("SELECT COUNT(*) FROM frontend.pizzas")
-                    pizza_count = cursor.fetchone()[0]
-
-                self.logger.info("Stats requested")
-                self.metrics.record_business_event('stats_request', 'success')
+                # Get pizza count
+                total_pizzas = self.db.execute_query(
+                    "SELECT COUNT(*) as count FROM frontend.pizzas",
+                    fetch='one'
+                )['count']
+                
+                available_pizzas = self.db.execute_query(
+                    "SELECT COUNT(*) as count FROM frontend.pizzas WHERE available = true",
+                    fetch='one'
+                )['count']
                 
                 return jsonify({
-                    'service': self.service_name,
-                    'pizza_count': pizza_count,
+                    'success': True,
+                    'stats': {
+                        'total_pizzas': total_pizzas,
+                        'available_pizzas': available_pizzas,
+                        'service': 'frontend-service',
+                        'version': os.getenv('SERVICE_VERSION', '1.0.0'),
+                        'uptime': time.time() - self.start_time
+                    },
                     'timestamp': self.get_timestamp()
                 })
                 
             except Exception as e:
                 self.logger.error("Failed to get stats", error=str(e))
-                self.metrics.record_business_event('stats_request', 'failed')
-                
                 return jsonify({
                     'success': False,
-                    'error': 'Failed to retrieve stats'
+                    'error': 'Failed to get statistics'
+                }), 500
+
+        @self.app.route('/api/v1/logs', methods=['GET'])
+        def get_recent_logs():
+            """Get recent logs with service metadata for frontend display"""
+            try:
+                # Simulate recent service activities with structured log format
+                recent_activities = [
+                    {
+                        'timestamp': self.get_timestamp(),
+                        'service': 'frontend-service',
+                        'event_type': 'API',
+                        'message': 'Меню загружено успешно',
+                        'level': 'INFO'
+                    },
+                    {
+                        'timestamp': self.get_timestamp(),
+                        'service': 'frontend-service', 
+                        'event_type': 'HEALTH',
+                        'message': 'Проверка здоровья сервиса',
+                        'level': 'INFO'
+                    }
+                ]
+                
+                return jsonify({
+                    'success': True,
+                    'logs': recent_activities,
+                    'service_metadata': {
+                        'service_name': 'frontend-service',
+                        'version': os.getenv('SERVICE_VERSION', '1.0.0'),
+                        'container_id': os.getenv('HOSTNAME', 'unknown')
+                    },
+                    'timestamp': self.get_timestamp()
+                })
+                
+            except Exception as e:
+                self.logger.error("Failed to get logs", error=str(e))
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to get logs'
                 }), 500
     
     def get_timestamp(self) -> str:

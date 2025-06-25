@@ -21,6 +21,21 @@ scrape_configs:
     metrics_path: /metrics
     scrape_interval: 30s
 
+  # System Metrics (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'pizza-system-host'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'infrastructure'
+
   # Nginx API Gateway
   - job_name: 'nginx'
     static_configs:
@@ -43,11 +58,14 @@ scrape_configs:
       - source_labels: []
         target_label: service_name
         replacement: 'frontend-service'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'microservice'
 
   # Order Service
   - job_name: 'order-service'
     static_configs:
-      - targets: ['order-service:5000']
+      - targets: ['order-service:5001']
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
@@ -58,11 +76,14 @@ scrape_configs:
       - source_labels: []
         target_label: service_name
         replacement: 'order-service'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'microservice'
 
   # Payment Service
   - job_name: 'payment-service'
     static_configs:
-      - targets: ['payment-service:5000']
+      - targets: ['payment-service:5002']
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
@@ -73,11 +94,14 @@ scrape_configs:
       - source_labels: []
         target_label: service_name
         replacement: 'payment-service'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'microservice'
 
   # Notification Service
   - job_name: 'notification-service'
     static_configs:
-      - targets: ['notification-service:5000']
+      - targets: ['notification-service:5004']
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
@@ -88,11 +112,14 @@ scrape_configs:
       - source_labels: []
         target_label: service_name
         replacement: 'notification-service'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'microservice'
 
   # Payment Mock Service
   - job_name: 'payment-mock'
     static_configs:
-      - targets: ['payment-mock:5000']
+      - targets: ['payment-mock:5003']
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
@@ -103,23 +130,49 @@ scrape_configs:
       - source_labels: []
         target_label: service_name
         replacement: 'payment-mock'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'external-mock'
 
-  # PostgreSQL Database (if using postgres_exporter)
+  # Docker Container Metrics (cAdvisor integration)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'docker-host'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'container-monitoring'
+
+  # PostgreSQL Database (with postgres_exporter when available)
   # - job_name: 'postgres'
   #   static_configs:
-  #     - targets: ['postgres:5432']
+  #     - targets: ['postgres-exporter:9187']
   #   metrics_path: /metrics
   #   scrape_interval: 30s
   #   scrape_timeout: 10s
+  #   relabel_configs:
+  #     - source_labels: []
+  #       target_label: service_type
+  #       replacement: 'database'
 
-  # Kafka (if using kafka_exporter)
+  # Kafka Metrics (with kafka_exporter when available)
   # - job_name: 'kafka'
   #   static_configs:
-  #     - targets: ['kafka:29092']
+  #     - targets: ['kafka-exporter:9308']
   #   metrics_path: /metrics
   #   scrape_interval: 30s
   #   scrape_timeout: 10s
+  #   relabel_configs:
+  #     - source_labels: []
+  #       target_label: service_type
+  #       replacement: 'message-broker'
 
-# Global recording rules for common metrics
+# Global recording rules for common metrics aggregation
 # rule_files:
-#   - "recording_rules.yml"  # Commented out to avoid duplication 
+#   - "recording_rules.yml"  # Enable for performance optimization 

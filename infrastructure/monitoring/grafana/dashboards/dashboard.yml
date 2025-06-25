@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Pizza System Dashboards'
+    orgId: 1
+    folder: 'Pizza Order System'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards 

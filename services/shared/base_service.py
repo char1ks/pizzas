@@ -90,8 +90,19 @@ def setup_logging(service_name: str, log_level: str = 'INFO') -> structlog.Bound
         format="%(message)s",
     )
     
-    # Create logger for service
+    # Create logger for service with service metadata
     logger = structlog.get_logger(service_name)
+    
+    # Bind service metadata to all log messages
+    service_version = os.getenv('SERVICE_VERSION', '1.0.0')
+    container_id = os.getenv('HOSTNAME', 'unknown')  # Docker container hostname
+    
+    logger = logger.bind(
+        service=service_name,
+        version=service_version,
+        container_id=container_id
+    )
+    
     return logger
 
 

@@ -20,7 +20,8 @@ const API_BASE = '/api/v1';
 const API_ENDPOINTS = {
     menu: `${API_BASE}/menu`,
     orders: `${API_BASE}/orders`,
-    notifications: `${API_BASE}/notifications`
+    notifications: `${API_BASE}/notifications`,
+    base: API_BASE
 };
 
 // ========================================
@@ -74,11 +75,16 @@ function showToast(message, icon = '✅', duration = 3000) {
 }
 
 /**
- * Add event to log
+ * Add event to log with optional service information
  */
-function addEventLog(type, message) {
+function addEventLog(type, message, service = null) {
     const timestamp = formatTimestamp();
-    AppState.eventLog.unshift({ timestamp, type, message });
+    AppState.eventLog.unshift({ 
+        timestamp, 
+        type, 
+        message, 
+        service: service || detectServiceFromMessage(type, message)
+    });
     
     // Keep only last 50 events
     if (AppState.eventLog.length > 50) {
@@ -89,17 +95,58 @@ function addEventLog(type, message) {
 }
 
 /**
- * Update event log display
+ * Detect service from event type and message
+ */
+function detectServiceFromMessage(type, message) {
+    if (type === 'API' && message.includes('меню')) return 'frontend-service';
+    if (type === 'ORDER') return 'order-service';
+    if (type === 'PAYMENT') return 'payment-service';
+    if (type === 'NOTIFICATION') return 'notification-service';
+    if (type === 'POLL') return 'order-service';
+    if (type === 'HEALTH') return 'system';
+    if (type === 'SYSTEM') return 'frontend-ui';
+    return 'frontend-ui';
+}
+
+/**
+ * Update event log display with service information
  */
 function updateEventLogDisplay() {
     const eventLog = document.getElementById('eventLog');
-    eventLog.innerHTML = AppState.eventLog.map(event => `
+    eventLog.innerHTML = AppState.eventLog.map(event => {
+        const serviceClass = `service-${event.service.replace('-', '_')}`;
+        return `
         <div class="log-entry animate-slide-in">
             <span class="timestamp">${event.timestamp}</span>
+            <span class="service ${serviceClass}">[${event.service}]</span>
             <span class="event-type">${event.type}</span>
             <span class="message">${event.message}</span>
         </div>
-    `).join('');
+    `}).join('');
+}
+
+/**
+ * Add event log from API response (when services send structured logs)
+ */
+function addEventLogFromAPI(logData) {
+    const timestamp = logData.timestamp || formatTimestamp();
+    const service = logData.service || 'unknown';
+    const type = logData.event_type || logData.type || 'INFO';
+    const message = logData.message || logData.msg || 'No message';
+    
+    AppState.eventLog.unshift({ 
+        timestamp, 
+        service, 
+        type, 
+        message 
+    });
+    
+    // Keep only last 50 events
+    if (AppState.eventLog.length > 50) {
+        AppState.eventLog = AppState.eventLog.slice(0, 50);
+    }
+    
+    updateEventLogDisplay();
 }
 
 // ========================================
@@ -567,7 +614,10 @@ function setupMonitoringUrls() {
         const monitoringLinks = [
             { id: 'kafka-ui-link', port: '8080' },
             { id: 'grafana-link', port: '3000' },
-            { id: 'prometheus-link', port: '9090' }
+            { id: 'prometheus-link', port: '9090' },
+            { id: 'pgadmin-link', port: '8081' },
+            { id: 'cadvisor-link', port: '8082' },
+            { id: 'node-exporter-link', port: '9100' }
         ];
         
         monitoringLinks.forEach(({ id, port }) => {
@@ -587,7 +637,10 @@ function setupMonitoringUrls() {
         const localLinks = [
             { id: 'kafka-ui-link', url: 'http://localhost:8080' },
             { id: 'grafana-link', url: 'http://localhost:3000' },
-            { id: 'prometheus-link', url: 'http://localhost:9090' }
+            { id: 'prometheus-link', url: 'http://localhost:9090' },
+            { id: 'pgadmin-link', url: 'http://localhost:8081' },
+            { id: 'cadvisor-link', url: 'http://localhost:8082' },
+            { id: 'node-exporter-link', url: 'http://localhost:9100' }
         ];
         
         localLinks.forEach(({ id, url }) => {
@@ -605,7 +658,7 @@ function setupMonitoringUrls() {
  * Initialize application
  */
 function initializeApp() {
-    addEventLog('SYSTEM', 'Инициализация системы заказов...');
+    addEventLog('SYSTEM', 'Инициализация системы заказов...', 'frontend-ui');
     
     // Setup monitoring URLs based on environment
     setupMonitoringUrls();
@@ -616,12 +669,15 @@ function initializeApp() {
     // Start health monitoring
     startHealthMonitoring();
     
+    // Start log monitoring
+    startLogMonitoring();
+    
     // Add initial welcome message
     setTimeout(() => {
         showToast('Добро пожаловать в систему заказов!', '👋', 4000);
     }, 1000);
     
-    addEventLog('SYSTEM', 'Система готова к работе');
+    addEventLog('SYSTEM', 'Система готова к работе', 'frontend-ui');
 }
 
 /**
@@ -683,4 +739,38 @@ if (window.location.hostname === 'localhost') {
     
     console.log('🛠️ Development mode: PizzaApp debug object available');
     console.log('Use PizzaApp.simulateOrder() to quickly test order flow');
+}
+
+/**
+ * Fetch logs from services and display them
+ */
+async function fetchServiceLogs() {
+    try {
+        // Fetch logs from frontend service
+        const response = await fetch(`${API_ENDPOINTS.base}/api/v1/logs`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.logs) {
+                data.logs.forEach(log => {
+                    addEventLogFromAPI(log);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch service logs:', error);
+    }
+}
+
+/**
+ * Start monitoring service logs
+ */
+function startLogMonitoring() {
+    // Initial log fetch
+    addEventLog('SYSTEM', 'Система логирования запущена', 'frontend-ui');
+    
+    // Fetch logs every 10 seconds
+    setInterval(fetchServiceLogs, 10000);
+    
+    // Fetch logs immediately
+    fetchServiceLogs();
 } 
