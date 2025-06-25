@@ -1,0 +1,125 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'pizza-order-system'
+    environment: 'development'
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [] # Add Alertmanager targets here if used
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Nginx API Gateway
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:8082']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Frontend Service
+  - job_name: 'frontend-service'
+    static_configs:
+      - targets: ['frontend-service:5000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'frontend-service'
+      - source_labels: []
+        target_label: service_name
+        replacement: 'frontend-service'
+
+  # Order Service
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:5000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'order-service'
+      - source_labels: []
+        target_label: service_name
+        replacement: 'order-service'
+
+  # Payment Service
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment-service:5000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'payment-service'
+      - source_labels: []
+        target_label: service_name
+        replacement: 'payment-service'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:5000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'notification-service'
+      - source_labels: []
+        target_label: service_name
+        replacement: 'notification-service'
+
+  # Payment Mock Service
+  - job_name: 'payment-mock'
+    static_configs:
+      - targets: ['payment-mock:5000']
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'payment-mock'
+      - source_labels: []
+        target_label: service_name
+        replacement: 'payment-mock'
+
+  # PostgreSQL Database (if using postgres_exporter)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres:5432']
+  #   metrics_path: /metrics
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s
+
+  # Kafka (if using kafka_exporter)
+  # - job_name: 'kafka'
+  #   static_configs:
+  #     - targets: ['kafka:29092']
+  #   metrics_path: /metrics
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s
+
+# Global recording rules for common metrics
+# rule_files:
+#   - "recording_rules.yml"  # Commented out to avoid duplication 
