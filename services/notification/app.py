@@ -697,11 +697,11 @@ class NotificationService(BaseService):
     
     def handle_event(self, topic: str, event_data: Dict, key: str):
         """Handle events from Kafka by generating notifications."""
-            event_type = event_data.get('event_type')
+        event_type = event_data.get('event_type')
         order_id = event_data.get('orderId') or event_data.get('order_id')
-            
+        
         self.logger.info("Processing event for notification", topic=topic, event_type=event_type, order_id=order_id)
-            
+        
         try:
             if event_type == 'OrderCreated':
                 self.handle_order_created(event_data)
@@ -733,8 +733,8 @@ class NotificationService(BaseService):
         subject = template['title_template'].format(**event_data)
 
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='OrderCreated',
             subject=subject,
             message=message,
@@ -744,7 +744,7 @@ class NotificationService(BaseService):
     def handle_order_paid(self, event_data: Dict):
         """Handle OrderPaid event (successful payment)."""
         user_id = event_data.get('user_id', 'anonymous')
-            order_id = event_data.get('order_id')
+        order_id = event_data.get('order_id')
         
         if not order_id:
             self.logger.warning("OrderPaid event missing order_id", event_data=event_data)
@@ -756,10 +756,10 @@ class NotificationService(BaseService):
 
         message = template['message_template'].format(**event_data)
         subject = template['title_template'].format(**event_data)
-            
+        
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='OrderPaid',
             subject=subject,
             message=message,
@@ -769,7 +769,7 @@ class NotificationService(BaseService):
     def handle_payment_failed(self, event_data: Dict):
         """Handle PaymentFailed event."""
         user_id = event_data.get('user_id', 'anonymous')
-            order_id = event_data.get('order_id')
+        order_id = event_data.get('order_id')
         
         if not order_id:
             self.logger.warning("PaymentFailed event missing order_id", event_data=event_data)
@@ -781,10 +781,10 @@ class NotificationService(BaseService):
 
         message = template['message_template'].format(**event_data)
         subject = template['title_template'].format(**event_data)
-            
+        
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='PaymentFailed',
             subject=subject,
             message=message,
@@ -794,11 +794,11 @@ class NotificationService(BaseService):
     def get_template(self, template_type: str) -> Optional[Dict]:
         """Get notification template from the database."""
         try:
-        return self.db.execute_query(
-            "SELECT * FROM notifications.notification_templates WHERE type = %s",
-            (template_type,),
-            fetch='one'
-        )
+            return self.db.execute_query(
+                "SELECT * FROM notifications.notification_templates WHERE type = %s",
+                (template_type,),
+                fetch='one'
+            )
         except Exception as e:
             self.logger.error("Failed to get notification template", template_type=template_type, error=str(e))
             return None
