@@ -149,29 +149,35 @@ scrape_configs:
         target_label: service_type
         replacement: 'container-monitoring'
 
-  # PostgreSQL Database (with postgres_exporter when available)
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
-  #   metrics_path: /metrics
-  #   scrape_interval: 30s
-  #   scrape_timeout: 10s
-  #   relabel_configs:
-  #     - source_labels: []
-  #       target_label: service_type
-  #       replacement: 'database'
+  # PostgreSQL Database Metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'postgres-database'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'database'
 
-  # Kafka Metrics (with kafka_exporter when available)
-  # - job_name: 'kafka'
-  #   static_configs:
-  #     - targets: ['kafka-exporter:9308']
-  #   metrics_path: /metrics
-  #   scrape_interval: 30s
-  #   scrape_timeout: 10s
-  #   relabel_configs:
-  #     - source_labels: []
-  #       target_label: service_type
-  #       replacement: 'message-broker'
+  # Kafka Message Broker Metrics
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'kafka-broker'
+      - source_labels: []
+        target_label: service_type
+        replacement: 'message-broker'
 
 # Global recording rules for common metrics aggregation
 # rule_files:

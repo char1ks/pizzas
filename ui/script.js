@@ -617,13 +617,19 @@ function setupMonitoringUrls() {
             { id: 'prometheus-link', port: '9090' },
             { id: 'pgadmin-link', port: '8081' },
             { id: 'cadvisor-link', port: '8083' },
-            { id: 'node-exporter-link', port: '9100' }
+            { id: 'node-exporter-link', port: '9100' },
+            { id: 'use-dashboard-link', port: '3000', dashboard: 'use-metrics' },
+            { id: 'red-dashboard-link', port: '3000', dashboard: 'red-metrics' },
+            { id: 'ltes-dashboard-link', port: '3000', dashboard: 'ltes-metrics' }
         ];
         
-        monitoringLinks.forEach(({ id, port }) => {
+        monitoringLinks.forEach(({ id, port, dashboard }) => {
             const link = document.getElementById(id);
             if (link) {
-                const url = protocol + '//' + basePattern.replace('{PORT}', port);
+                let url = protocol + '//' + basePattern.replace('{PORT}', port);
+                if (dashboard) {
+                    url += `/d/${dashboard}`;
+                }
                 link.href = url;
                 console.log(`🔗 ${id}: ${url}`);
             }
@@ -640,7 +646,10 @@ function setupMonitoringUrls() {
             { id: 'prometheus-link', url: 'http://localhost:9090' },
             { id: 'pgadmin-link', url: 'http://localhost:8081' },
             { id: 'cadvisor-link', url: 'http://localhost:8083' },
-            { id: 'node-exporter-link', url: 'http://localhost:9100' }
+            { id: 'node-exporter-link', url: 'http://localhost:9100' },
+            { id: 'use-dashboard-link', url: 'http://localhost:3000/d/use-metrics' },
+            { id: 'red-dashboard-link', url: 'http://localhost:3000/d/red-metrics' },
+            { id: 'ltes-dashboard-link', url: 'http://localhost:3000/d/ltes-metrics' }
         ];
         
         localLinks.forEach(({ id, url }) => {
