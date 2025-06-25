@@ -615,7 +615,7 @@ function setupMonitoringUrls() {
             { id: 'kafka-ui-link', port: '8080' },
             { id: 'grafana-link', port: '3000' },
             { id: 'prometheus-link', port: '9090' },
-            { id: 'pgadmin-link', port: '8081' },
+            { id: 'pgadmin-link', port: '80', path: '/pgadmin/' },  // Use nginx proxy
             { id: 'cadvisor-link', port: '8083' },
             { id: 'node-exporter-link', port: '9100' },
             { id: 'use-dashboard-link', port: '3000', dashboard: 'use-metrics' },
@@ -623,11 +623,13 @@ function setupMonitoringUrls() {
             { id: 'ltes-dashboard-link', port: '3000', dashboard: 'ltes-metrics' }
         ];
         
-        monitoringLinks.forEach(({ id, port, dashboard }) => {
+        monitoringLinks.forEach(({ id, port, dashboard, path }) => {
             const link = document.getElementById(id);
             if (link) {
                 let url = protocol + '//' + basePattern.replace('{PORT}', port);
-                if (dashboard) {
+                if (path) {
+                    url += path;
+                } else if (dashboard) {
                     url += `/d/${dashboard}`;
                 }
                 link.href = url;
@@ -644,7 +646,7 @@ function setupMonitoringUrls() {
             { id: 'kafka-ui-link', url: 'http://localhost:8080' },
             { id: 'grafana-link', url: 'http://localhost:3000' },
             { id: 'prometheus-link', url: 'http://localhost:9090' },
-            { id: 'pgadmin-link', url: 'http://localhost:8081' },
+            { id: 'pgadmin-link', url: 'http://localhost/pgadmin/' },  // Use nginx proxy
             { id: 'cadvisor-link', url: 'http://localhost:8083' },
             { id: 'node-exporter-link', url: 'http://localhost:9100' },
             { id: 'use-dashboard-link', url: 'http://localhost:3000/d/use-metrics' },
