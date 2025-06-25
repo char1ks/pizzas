@@ -62,6 +62,9 @@ class NotificationService(BaseService):
         # Initialize database
         self.init_database_with_schema_creation('notifications', 'SELECT 1')
         
+        # Create default templates
+        self.create_default_templates()
+        
         # Start event consumer in background thread
         self.start_event_consumer()
         
@@ -72,8 +75,6 @@ class NotificationService(BaseService):
             push_enabled=self.push_enabled,
             webhook_enabled=self.webhook_enabled
         )
-    
-
 
     def create_default_templates(self):
         """Create default notification templates if they don't exist."""
@@ -183,107 +184,7 @@ class NotificationService(BaseService):
                     'error': 'Failed to queue notification',
                     'message': str(e)
                 }), 500
-        
-        @self.app.route('/api/v1/notifications/<notification_id>', methods=['GET'])
-        def get_notification(notification_id: str):
-            """Get notification details by ID"""
-            try:
-                notification = self.get_notification_by_id(notification_id)
-                
-                if not notification:
-                    return jsonify({
-                        'success': False,
-                        'error': 'Notification not found'
-                    }), 404
-                
-                # Get delivery attempts
-                attempts = self.get_delivery_attempts(notification_id)
-                notification['attempts'] = attempts
-                
-                self.logger.info("Notification retrieved", notification_id=notification_id)
-                
-                return jsonify({
-                    'success': True,
-                    'notification': notification,
-                    'timestamp': self.get_timestamp()
-                })
-                
-            except Exception as e:
-                self.logger.error("Failed to get notification", notification_id=notification_id, error=str(e))
-                
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to retrieve notification'
-                }), 500
-        
-        @self.app.route('/api/v1/notifications', methods=['GET'])
-        def list_notifications():
-            """List notifications with pagination and filtering"""
-            try:
-                # Get query parameters
-                user_id = request.args.get('userId')
-                status = request.args.get('status')
-                channel = request.args.get('channel')
-                limit = int(request.args.get('limit', '50'))
-                offset = int(request.args.get('offset', '0'))
-                
-                notifications = self.list_notifications_with_filters(user_id, status, channel, limit, offset)
-                
-                self.logger.info(
-                    "Notifications listed",
-                    count=len(notifications),
-                    user_id=user_id,
-                    status=status,
-                    channel=channel
-                )
-                
-                return jsonify({
-                    'success': True,
-                    'notifications': notifications,
-                    'limit': limit,
-                    'offset': offset,
-                    'timestamp': self.get_timestamp()
-                })
-                
-            except Exception as e:
-                self.logger.error("Failed to list notifications", error=str(e))
-                
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to list notifications'
-                }), 500
-        
-        @self.app.route('/api/v1/notifications/user/<user_id>', methods=['GET'])
-        def get_user_notifications(user_id: str):
-            """Get notifications for specific user"""
-            try:
-                notifications = self.get_notifications_by_user_id(user_id)
-                
-                return jsonify({
-                    'success': True,
-                    'notifications': notifications,
-                    'user_id': user_id,
-                    'timestamp': self.get_timestamp()
-                })
-                
-            except Exception as e:
-                self.logger.error("Failed to get user notifications", user_id=user_id, error=str(e))
-                
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to get user notifications'
-                }), 500
-        
-        @self.app.route('/api/v1/notifications/stats', methods=['GET'])
-        def get_notification_stats():
-            """Get aggregated notification statistics"""
-            try:
-                stats = self.get_notification_statistics()
-                return jsonify({'success': True, 'stats': stats})
-            except Exception as e:
-                self.logger.error("Failed to get notification stats", error=str(e))
-                return jsonify({'success': False, 'error': 'Failed to retrieve stats'}), 500
-    
+
     def create_notification_record(self, notification_id: str, user_id: str, order_id: str,
                                   subject: str, message: str, channels: List[str], priority: str,
                                   template_type: str = None) -> Dict:
@@ -303,7 +204,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to create notification record", error=str(e))
             raise
-    
+
     def send_notification_async(self, notification_id: str):
         """Send notification through all specified channels asynchronously"""
         try:
@@ -359,7 +260,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Notification async sending error", notification_id=notification_id, error=str(e))
             self.update_notification_status(notification_id, NotificationStatus.FAILED.value)
-    
+
     def send_through_channel(self, notification: Dict, channel: str, contact_info: Dict) -> bool:
         """Send notification through specific channel"""
         try:
@@ -395,7 +296,7 @@ class NotificationService(BaseService):
                 error=str(e)
             )
             return False
-    
+
     def send_email_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send email notification (mocked implementation)"""
         try:
@@ -419,7 +320,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Email sending failed", error=str(e))
             return False
-    
+
     def send_sms_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send SMS notification (mocked implementation)"""
         try:
@@ -443,7 +344,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("SMS sending failed", error=str(e))
             return False
-    
+
     def send_push_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send push notification (mocked implementation)"""
         try:
@@ -467,7 +368,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Push notification sending failed", error=str(e))
             return False
-    
+
     def send_webhook_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send webhook notification"""
         try:
@@ -509,7 +410,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Webhook notification sending failed", error=str(e))
             return False
-    
+
     def get_user_contact_info(self, user_id: str) -> Dict:
         """Get user contact information (mocked implementation)"""
         # In real implementation, this would query user service or database
@@ -519,7 +420,7 @@ class NotificationService(BaseService):
             'device_tokens': [f"device_token_{user_id}_1", f"device_token_{user_id}_2"],
             'webhook_url': f"https://webhook.example.com/users/{user_id}/notifications"
         }
-    
+
     def record_delivery_attempt(self, notification_id: str, channel: str) -> int:
         """Record delivery attempt in database"""
         try:
@@ -540,7 +441,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to record delivery attempt", error=str(e))
             raise
-    
+
     def update_delivery_attempt(self, attempt_id: int, success: bool, error_message: str = None):
         """Update delivery attempt result"""
         try:
@@ -554,7 +455,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to update delivery attempt", error=str(e))
             raise
-    
+
     def get_notification_by_id(self, notification_id: str) -> Optional[Dict]:
         """Get notification by ID"""
         try:
@@ -567,62 +468,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to get notification by ID", notification_id=notification_id, error=str(e))
             raise
-    
-    def get_notifications_by_user_id(self, user_id: str) -> List[Dict]:
-        """Get notifications by user ID"""
-        try:
-            return self.db.execute_query(
-                "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC LIMIT 50",
-                (user_id,),
-                fetch=True
-            )
-        except Exception as e:
-            self.logger.error("Failed to get notifications by user ID", user_id=user_id, error=str(e))
-            raise
-    
-    def get_delivery_attempts(self, notification_id: str) -> List[Dict]:
-        """Get delivery attempts for a notification"""
-        try:
-            return self.db.execute_query(
-                "SELECT * FROM delivery_attempts WHERE notification_id = %s ORDER BY attempt_number",
-                (notification_id,),
-                fetch=True
-            )
-        except Exception as e:
-            self.logger.error("Failed to get delivery attempts", notification_id=notification_id, error=str(e))
-            return []
-    
-    def list_notifications_with_filters(self, user_id: str = None, status: str = None,
-                                      channel: str = None, limit: int = 50, offset: int = 0) -> List[Dict]:
-        """List notifications with optional filters"""
-        try:
-            query = "SELECT * FROM notifications"
-            params = []
-            conditions = []
-            
-            if user_id:
-                conditions.append("user_id = %s")
-                params.append(user_id)
-            
-            if status:
-                conditions.append("status = %s")
-                params.append(status)
-            
-            if channel:
-                conditions.append("channels::text LIKE %s")
-                params.append(f'%"{channel}"%')
-            
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-            
-            query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
-            params.extend([limit, offset])
-            
-            return self.db.execute_query(query, tuple(params), fetch=True)
-        except Exception as e:
-            self.logger.error("Failed to list notifications", error=str(e))
-            raise
-    
+
     def update_notification_status(self, notification_id: str, status: str):
         """Update notification status"""
         try:
@@ -633,46 +479,12 @@ class NotificationService(BaseService):
                     WHERE id = %s
                 """, (status, notification_id))
                 
-                self.logger.info("Notification status updated", notification_id=notification_id, status=status)
-                
+            self.logger.info("Notification status updated", notification_id=notification_id, status=status)
+            
         except Exception as e:
             self.logger.error("Failed to update notification status", notification_id=notification_id, error=str(e))
             raise
-    
-    def get_notification_statistics(self) -> Dict[str, Any]:
-        """Get notification statistics"""
-        try:
-            with self.db.get_cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        COUNT(*) as total_notifications,
-                        COUNT(*) FILTER (WHERE status = 'SENT') as sent_notifications,
-                        COUNT(*) FILTER (WHERE status = 'FAILED') as failed_notifications,
-                        COUNT(*) FILTER (WHERE status = 'PENDING') as pending_notifications,
-                        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as notifications_24h
-                    FROM notifications
-                """)
-                stats = dict(cursor.fetchone())
-                
-                # Get channel statistics
-                cursor.execute("""
-                    SELECT 
-                        channel,
-                        COUNT(*) as total_attempts,
-                        COUNT(*) FILTER (WHERE success = true) as successful_attempts,
-                        COUNT(*) FILTER (WHERE success = false) as failed_attempts
-                    FROM delivery_attempts
-                    GROUP BY channel
-                """)
-                channel_stats = [dict(row) for row in cursor.fetchall()]
-                
-                stats['channel_statistics'] = channel_stats
-                
-            return stats
-        except Exception as e:
-            self.logger.error("Failed to get notification statistics", error=str(e))
-            return {}
-    
+
     def start_event_consumer(self):
         """Start a background thread to consume Kafka events"""
         def consume_events():
@@ -694,14 +506,14 @@ class NotificationService(BaseService):
         consumer_thread = threading.Thread(target=consume_events, daemon=True)
         consumer_thread.start()
         self.logger.info("Event consumer thread started")
-    
+
     def handle_event(self, topic: str, event_data: Dict, key: str):
         """Handle events from Kafka by generating notifications."""
-            event_type = event_data.get('event_type')
+        event_type = event_data.get('event_type')
         order_id = event_data.get('orderId') or event_data.get('order_id')
-            
+        
         self.logger.info("Processing event for notification", topic=topic, event_type=event_type, order_id=order_id)
-            
+        
         try:
             if event_type == 'OrderCreated':
                 self.handle_order_created(event_data)
@@ -714,7 +526,7 @@ class NotificationService(BaseService):
             
         except Exception as e:
             self.logger.error(f"Failed to handle {event_type}", error=str(e), order_id=order_id)
-    
+
     def handle_order_created(self, event_data: Dict):
         """Handle OrderCreated event."""
         user_id = event_data.get('userId', 'anonymous')
@@ -733,18 +545,18 @@ class NotificationService(BaseService):
         subject = template['title_template'].format(**event_data)
 
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='OrderCreated',
             subject=subject,
             message=message,
             metadata=event_data
         )
-    
+
     def handle_order_paid(self, event_data: Dict):
         """Handle OrderPaid event (successful payment)."""
         user_id = event_data.get('user_id', 'anonymous')
-            order_id = event_data.get('order_id')
+        order_id = event_data.get('order_id')
         
         if not order_id:
             self.logger.warning("OrderPaid event missing order_id", event_data=event_data)
@@ -756,20 +568,20 @@ class NotificationService(BaseService):
 
         message = template['message_template'].format(**event_data)
         subject = template['title_template'].format(**event_data)
-            
+        
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='OrderPaid',
             subject=subject,
             message=message,
             metadata=event_data
         )
-    
+
     def handle_payment_failed(self, event_data: Dict):
         """Handle PaymentFailed event."""
         user_id = event_data.get('user_id', 'anonymous')
-            order_id = event_data.get('order_id')
+        order_id = event_data.get('order_id')
         
         if not order_id:
             self.logger.warning("PaymentFailed event missing order_id", event_data=event_data)
@@ -781,24 +593,24 @@ class NotificationService(BaseService):
 
         message = template['message_template'].format(**event_data)
         subject = template['title_template'].format(**event_data)
-            
+        
         self.save_notification(
-                user_id=user_id,
-                order_id=order_id,
+            user_id=user_id,
+            order_id=order_id,
             template_type='PaymentFailed',
             subject=subject,
             message=message,
             metadata=event_data
         )
-    
+
     def get_template(self, template_type: str) -> Optional[Dict]:
         """Get notification template from the database."""
         try:
-        return self.db.execute_query(
-            "SELECT * FROM notifications.notification_templates WHERE type = %s",
-            (template_type,),
-            fetch='one'
-        )
+            return self.db.execute_query(
+                "SELECT * FROM notifications.notification_templates WHERE type = %s",
+                (template_type,),
+                fetch='one'
+            )
         except Exception as e:
             self.logger.error("Failed to get notification template", template_type=template_type, error=str(e))
             return None
@@ -824,7 +636,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to save notification", order_id=order_id, error=str(e))
             return None
-    
+
     def get_timestamp(self) -> str:
         """Get current timestamp in ISO format"""
         return datetime.now(timezone.utc).isoformat()
