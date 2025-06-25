@@ -677,34 +677,32 @@ section {
     transform: scale(1.05);
 }
 
-/* Methodology cards styling */
+/* Methodology cards styling - unified with other monitoring cards */
 .monitoring-card.methodology {
-    border-left: 4px solid var(--accent-color);
-    background: linear-gradient(135deg, rgba(255, 107, 107, 0.05), rgba(78, 205, 196, 0.05));
-    position: relative;
-}
-
-.monitoring-card.methodology::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent-color), var(--primary-teal));
+    /* Remove special styling to match other cards */
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
 }
 
 .monitoring-card.methodology h3 {
-    color: var(--accent-color);
+    color: var(--primary-teal);
     font-weight: 600;
 }
 
 .monitoring-card.methodology .monitor-link {
-    background: var(--accent-color);
+    background: var(--primary-teal);
+    color: var(--text-primary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    display: inline-block;
+    margin-top: var(--spacing-sm);
 }
 
 .monitoring-card.methodology .monitor-link:hover {
-    background: #d63031;
+    background: var(--primary-teal-dark);
     transform: scale(1.05);
 }
 
