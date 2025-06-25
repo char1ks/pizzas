@@ -344,7 +344,11 @@ class PaymentService(BaseService):
                 # Publish success event
                 self.publish_payment_success_event(payment_id)
                 
-                self.logger.info("Payment processing completed successfully", payment_id=payment_id)
+                self.logger.info(
+                    "🎉 Payment processing completed successfully - event sent to Kafka",
+                    payment_id=payment_id,
+                    message="Published PaymentSuccess event to payment-events topic"
+                )
                 self.metrics.record_business_event('payment_completed', 'success')
                 
             else:
@@ -354,7 +358,11 @@ class PaymentService(BaseService):
                 # Publish failure event
                 self.publish_payment_failure_event(payment_id)
                 
-                self.logger.error("Payment processing failed after retries", payment_id=payment_id)
+                self.logger.error(
+                    "❌ Payment processing failed after retries - failure event sent to Kafka",
+                    payment_id=payment_id,
+                    message="Published PaymentFailed event to payment-events topic"
+                )
                 self.metrics.record_business_event('payment_completed', 'failed')
                 
         except Exception as e:
@@ -383,12 +391,14 @@ class PaymentService(BaseService):
             attempt_id = self.record_payment_attempt(payment_id)
             
             # Call external payment provider (mocked)
+            self.logger.info("💸 Sending payment to external provider", payment_id=payment_id)
             success = self.call_payment_provider(payment)
             
             if success:
                 # Record successful attempt
                 self.update_payment_attempt(attempt_id, success=True)
                 self.circuit_breaker.record_success()
+                self.logger.info("✅ Payment successfully completed", payment_id=payment_id)
                 return True
             else:
                 # Record failed attempt
@@ -406,6 +416,16 @@ class PaymentService(BaseService):
         # Circuit breaker check
         if not self.circuit_breaker.can_execute():
             self.logger.warning("Circuit breaker is open. Skipping payment provider call.", payment_id=payment['id'])
+            return False
+
+        # Check for crash test
+        if payment.get('failure_reason') == 'CRASH_TEST_ADDRESS':
+            self.logger.warning(
+                "🧪 CRASH TEST - Simulating payment failure",
+                payment_id=payment['id'],
+                order_id=payment['order_id'],
+                message="Address contains 'улица 123' - payment will fail"
+            )
             return False
 
         try:
@@ -586,10 +606,11 @@ class PaymentService(BaseService):
     def start_event_consumer(self):
         """Start Kafka event consumer in background thread"""
         def consume_events():
-            self.logger.info("Starting event consumer for order events")
+            self.logger.info("🔄 Starting event consumer for order events")
             
             while True:
                 try:
+                    self.logger.debug("📡 POLLING order-events topic for new messages...")
                     self.events.process_events(
                         topics=['order-events'],
                         group_id='payment-service-group',
@@ -607,16 +628,17 @@ class PaymentService(BaseService):
     
     def handle_order_event(self, topic: str, event_data: Dict, key: str):
         """Handle order events (e.g., OrderCreated)"""
-        event_type = event_data.get('event_type')
+            event_type = event_data.get('event_type')
         # Handle both 'orderId' (from outbox) and 'order_id' (from other potential events)
         order_id = event_data.get('orderId') or event_data.get('order_id')
-        
-        self.logger.info(
-            "Processing order event",
-            event_type=event_type,
-            order_id=order_id
-        )
-        
+            
+                        self.logger.info(
+                "📥 Received new order event from Kafka",
+                event_type=event_type,
+                order_id=order_id,
+                message="POLL detected new event from order-events topic"
+            )
+            
         try:
             if event_type == 'OrderCreated':
                 self.handle_order_created(event_data, order_id)
@@ -631,22 +653,35 @@ class PaymentService(BaseService):
     def handle_order_created(self, event_data: Dict, order_id: str):
         """Handle OrderCreated event to initiate payment."""
         if not all(k in event_data for k in ['totalAmount', 'paymentMethod', 'userId']):
-            self.logger.warning("Incomplete order data for payment", event_data=event_data)
-            return
-        
+                self.logger.warning("Incomplete order data for payment", event_data=event_data)
+                return
+            
         amount = event_data['totalAmount']
         payment_method = event_data['paymentMethod']
+        
+        # Crash test: check if delivery address contains "улица 123" to simulate payment failure
+        delivery_address = event_data.get('deliveryAddress', {})
+        address_str = str(delivery_address).lower()
+        is_crash_test = 'улица 123' in address_str or 'улица123' in address_str.replace(' ', '')
+        
+        if is_crash_test:
+            self.logger.warning(
+                "🧪 CRASH TEST DETECTED - Payment will fail",
+                order_id=order_id,
+                delivery_address=delivery_address,
+                message="Address contains 'улица 123' - simulating payment failure"
+            )
 
         # Check for existing payment (idempotency)
         if self.get_payment_by_order_id(order_id):
             self.logger.info("Payment already initiated for order", order_id=order_id)
-            return
-        
+                return
+            
         # Create payment record
         payment_id = generate_id('pay_')
-        idempotency_key = self.generate_idempotency_key(order_id, amount, payment_method)
-        
-        self.create_payment_record(
+            idempotency_key = self.generate_idempotency_key(order_id, amount, payment_method)
+            
+        payment_record = self.create_payment_record(
             payment_id=payment_id,
             order_id=order_id,
             amount=amount,
@@ -654,14 +689,27 @@ class PaymentService(BaseService):
             idempotency_key=idempotency_key
         )
         
-        # Start async payment processing
-        threading.Thread(
-            target=self.process_payment_async,
-            args=(payment_id,),
-            daemon=True
-        ).start()
-        
-        self.logger.info("Payment processing initiated from order event", payment_id=payment_id, order_id=order_id)
+        # Store crash test flag in payment record for later use
+        if is_crash_test:
+            with self.db.transaction():
+                with self.db.get_cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE payments SET failure_reason = %s WHERE id = %s
+                    """, ('CRASH_TEST_ADDRESS', payment_id))
+            
+            # Start async payment processing
+            threading.Thread(
+                target=self.process_payment_async,
+                args=(payment_id,),
+                daemon=True
+            ).start()
+            
+        self.logger.info(
+            "💳 Payment processing initiated from order event",
+            payment_id=payment_id,
+            order_id=order_id,
+            message="Started async payment processing thread"
+        )
         self.metrics.record_business_event('payment_initiated_from_event', 'success')
     
     def get_timestamp(self) -> str:

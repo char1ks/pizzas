@@ -407,10 +407,10 @@ function showOrderStatus(order) {
     const orderStatusCard = document.getElementById('orderStatusCard');
     
     AppState.currentOrder = order;
-
+    
     // Defensive check for status property
     const status = order.status || 'UNKNOWN';
-
+    
     orderStatusCard.innerHTML = `
         <h3>Заказ #${order.id}</h3>
         <p>Сумма: ${formatPrice(order.total)}</p>

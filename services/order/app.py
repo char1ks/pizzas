@@ -343,6 +343,7 @@ class OrderService(BaseService):
                     'itemsCount': len(items),
                     'items': simplified_items,
                     'paymentMethod': payment_method,
+                    'deliveryAddress': delivery_address,
                     'timestamp': self.get_timestamp()
                 }
 
@@ -350,6 +351,13 @@ class OrderService(BaseService):
                     INSERT INTO orders.outbox_events (aggregate_id, event_type, event_data)
                     VALUES (%s, %s, %s::jsonb)
                 """, (order_id, 'OrderCreated', json.dumps(event_data)))
+                
+                self.logger.info(
+                    "📤 Event added to outbox",
+                    event_type='OrderCreated',
+                    order_id=order_id,
+                    outbox_event="OrderCreated event queued for publishing"
+                )
 
         return {'id': order_id, 'status': 'PENDING', 'total': total_amount}
     
@@ -420,10 +428,11 @@ class OrderService(BaseService):
     def start_event_consumer(self):
         """Start a background thread to consume Kafka events"""
         def consume_events():
-            self.logger.info("Starting event consumer for payment events")
+            self.logger.info("🔄 Starting event consumer for payment events")
             
             while True:
                 try:
+                    self.logger.debug("📡 POLLING payment-events topic for new messages...")
                     self.events.process_events(
                         topics=['payment-events'],
                         group_id='order-service-group',
@@ -450,9 +459,10 @@ class OrderService(BaseService):
                 return
             
             self.logger.info(
-                "Processing payment event",
+                "📥 Received new payment event from Kafka",
                 event_type=event_type,
-                order_id=order_id
+                order_id=order_id,
+                message="Processing payment event from payment-events topic"
             )
             
             if event_type == 'OrderPaid':
