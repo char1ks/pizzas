@@ -430,19 +430,39 @@ class PaymentService(BaseService):
         # Check if delivery address is "123" - force failure for testing
         try:
             # Get order details to check delivery address
+            self.logger.info("🔍 Checking delivery address for order", payment_id=payment_id, order_id=order_id)
+            
             order = self.db.execute_query(
                 "SELECT delivery_address FROM orders.orders WHERE id = %s",
                 (order_id,),
                 fetch='one'
             )
             
-            if order and order.get('delivery_address') == '123':
-                self.logger.warning("🧪 CRASH TEST - Address is '123', forcing payment failure", 
-                                  payment_id=payment_id, order_id=order_id)
-                return False
+            if order:
+                delivery_address = order.get('delivery_address', '')
+                # Strip whitespace and convert to string for comparison
+                delivery_address_clean = str(delivery_address).strip()
+                
+                self.logger.info("📍 Found delivery address", 
+                               payment_id=payment_id, 
+                               order_id=order_id, 
+                               delivery_address=delivery_address,
+                               delivery_address_clean=delivery_address_clean,
+                               address_length=len(delivery_address_clean))
+                
+                if delivery_address_clean == '123':
+                    self.logger.warning("🧪 CRASH TEST - Address is '123', forcing payment failure", 
+                                      payment_id=payment_id, order_id=order_id)
+                    return False
+                else:
+                    self.logger.info("✅ Address is not '123', proceeding with payment", 
+                                   payment_id=payment_id, 
+                                   delivery_address_clean=delivery_address_clean)
+            else:
+                self.logger.warning("⚠️ Order not found in database", payment_id=payment_id, order_id=order_id)
                 
         except Exception as e:
-            self.logger.error("Failed to check delivery address", payment_id=payment_id, error=str(e))
+            self.logger.error("Failed to check delivery address", payment_id=payment_id, order_id=order_id, error=str(e))
         
         # Circuit breaker check
         if not self.circuit_breaker.can_execute():
