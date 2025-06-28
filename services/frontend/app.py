@@ -388,46 +388,50 @@ class FrontendService(BaseService):
 
         @self.app.route('/api/v1/logs', methods=['GET'])
         def get_recent_logs():
-            """Get recent logs with service metadata for frontend display"""
-            try:
-                # Simulate recent service activities with structured log format
-                recent_activities = [
-                    {
-                        'timestamp': self.get_timestamp(),
-                        'service': 'frontend-service',
-                        'event_type': 'API',
-                        'message': 'Меню загружено успешно',
-                        'level': 'INFO'
-                    },
-                    {
-                        'timestamp': self.get_timestamp(),
-                        'service': 'frontend-service', 
-                        'event_type': 'HEALTH',
-                        'message': 'Проверка здоровья сервиса',
-                        'level': 'INFO'
-                    }
-                ]
-                
-                return jsonify({
-                    'success': True,
-                    'logs': recent_activities,
-                    'service_metadata': {
-                        'service_name': 'frontend-service',
-                        'version': os.getenv('SERVICE_VERSION', '1.0.0'),
-                        'container_id': os.getenv('HOSTNAME', 'unknown')
-                    },
-                    'timestamp': self.get_timestamp()
-                })
-                
-            except Exception as e:
-                self.logger.error("Failed to get logs", error=str(e))
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to get logs'
-                }), 500
-    
+            """Get recent logs from all microservices."""
+            service_name = request.args.get('service')
+            
+            if service_name:
+                # Get logs for a specific service
+                logs = self.get_service_logs(service_name)
+                return jsonify({'service': service_name, 'logs': logs})
+            
+            # Get logs for all services
+            services = [
+                'frontend-service',
+                'order-service',
+                'payment-service',
+                'notification-service',
+                'payment-mock'
+            ]
+            
+            all_logs = {}
+            for service in services:
+                try:
+                    all_logs[service] = self.get_service_logs(service)
+                except Exception as e:
+                    self.logger.warning(f"Could not fetch logs for {service}", error=str(e))
+                    all_logs[service] = [{"line": f"Error fetching logs: {e}"}]
+
+
+            return jsonify(all_logs)
+
+    def get_service_logs(self, service_name: str, tail: int = 50) -> List[str]:
+        """Get last N lines from a service's log file."""
+        log_file = f"/app/logs/{service_name}.log"
+        if not os.path.exists(log_file):
+            return ["Log file not found."]
+        
+        try:
+            with open(log_file, 'r') as f:
+                lines = f.readlines()
+                return lines[-tail:]
+        except Exception as e:
+            self.logger.error(f"Failed to read log file {log_file}", error=str(e))
+            return [f"Error reading log file: {e}"]
+
     def get_timestamp(self) -> str:
-        """Get current timestamp in ISO 8601 format"""
+        """Get current timestamp in ISO format"""
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 

@@ -1008,4 +1008,50 @@ section {
 
 .animate-slide-in {
     animation: slideIn 0.3s ease-out;
+}
+
+.all-logs-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.service-log-container {
+    background-color: #333;
+    border-radius: 8px;
+    padding: 12px;
+    height: 300px;
+    overflow-y: auto;
+}
+
+.service-log-container h4 {
+    margin-top: 0;
+    color: #ffc107;
+    border-bottom: 1px solid #555;
+    padding-bottom: 8px;
+}
+
+.service-log-container ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    color: #ddd;
+}
+
+.service-log-container li {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+    }
+    to {
+        transform: translateY(0);
+    }
 } 

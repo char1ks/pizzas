@@ -757,18 +757,48 @@ if (window.location.hostname === 'localhost') {
  */
 async function fetchServiceLogs() {
     try {
-        // Fetch logs from frontend service
-        const response = await fetch(`${API_ENDPOINTS.base}/api/v1/logs`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.logs) {
-                data.logs.forEach(log => {
-                    addEventLogFromAPI(log);
-                });
-            }
+        const data = await apiRequest(`${API_ENDPOINTS.base}/logs`);
+        const allLogsContainer = document.getElementById('allLogsContainer');
+
+        if (!data || typeof data !== 'object') {
+            console.error('Invalid log data received:', data);
+            addEventLog('ERROR', 'Invalid log data format from server');
+            return;
         }
+
+        // Clear previous logs
+        allLogsContainer.innerHTML = '';
+
+        for (const service in data) {
+            const logs = data[service];
+            const serviceLogContainer = document.createElement('div');
+            serviceLogContainer.className = 'service-log-container';
+            
+            const serviceTitle = document.createElement('h4');
+            serviceTitle.textContent = service;
+            serviceLogContainer.appendChild(serviceTitle);
+            
+            const logList = document.createElement('ul');
+            if (Array.isArray(logs) && logs.length > 0) {
+                logs.forEach(logLine => {
+                    const logItem = document.createElement('li');
+                    logItem.textContent = typeof logLine === 'string' ? logLine : JSON.stringify(logLine);
+                    logList.appendChild(logItem);
+                });
+            } else {
+                const noLogItem = document.createElement('li');
+                noLogItem.textContent = 'No logs available or error fetching.';
+                noLogItem.style.color = '#888';
+                logList.appendChild(noLogItem);
+            }
+            
+            serviceLogContainer.appendChild(logList);
+            allLogsContainer.appendChild(serviceLogContainer);
+        }
+
     } catch (error) {
         console.error('Failed to fetch service logs:', error);
+        addEventLog('ERROR', 'Failed to fetch service logs from backend');
     }
 }
 
@@ -776,12 +806,9 @@ async function fetchServiceLogs() {
  * Start monitoring service logs
  */
 function startLogMonitoring() {
-    // Initial log fetch
-    addEventLog('SYSTEM', 'Система логирования запущена', 'frontend-ui');
-    
-    // Fetch logs every 10 seconds
-    setInterval(fetchServiceLogs, 10000);
-    
-    // Fetch logs immediately
+    // Initial fetch
     fetchServiceLogs();
+    
+    // Poll every 5 seconds
+    setInterval(fetchServiceLogs, 5000);
 } 
