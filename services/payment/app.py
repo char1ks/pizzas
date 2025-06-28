@@ -713,13 +713,13 @@ class PaymentService(BaseService):
                     cursor.execute("""
                         UPDATE payments SET failure_reason = %s WHERE id = %s
                     """, ('CRASH_TEST_ADDRESS', payment_id))
-            
-            # Start async payment processing
-            threading.Thread(
-                target=self.process_payment_async,
-                args=(payment_id,),
-                daemon=True
-            ).start()
+        
+        # Start async payment processing (for ALL orders, not just crash tests)
+        threading.Thread(
+            target=self.process_payment_async,
+            args=(payment_id,),
+            daemon=True
+        ).start()
             
         self.logger.info(
             "💳 Payment processing initiated from order event",
