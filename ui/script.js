@@ -308,19 +308,28 @@ async function getOrderStatus(orderId) {
  */
 function startOrderStatusPolling(orderId) {
     addEventLog('POLL', `Начинаем опрос статуса заказа #${orderId}`);
+    console.log(`Starting status polling for order: ${orderId}`);
 
     let pollingInterval;
 
     const poll = async () => {
+        console.log(`Polling status for order: ${orderId}`);
         const orderResponse = await getOrderStatus(orderId);
         
+        console.log('Order response received:', orderResponse);
+        
         if (orderResponse && orderResponse.order) {
+            console.log('Order data:', orderResponse.order);
             updateOrderStatus(orderResponse.order);
             // Stop polling if status is final
             if (['COMPLETED', 'PAID', 'FAILED', 'CANCELLED'].includes(orderResponse.order.status)) {
                 clearInterval(pollingInterval);
                 addEventLog('POLL', `Завершаем опрос статуса: ${orderResponse.order.status}`);
+                console.log(`Polling stopped for order ${orderId}, final status: ${orderResponse.order.status}`);
             }
+        } else {
+            console.error('Invalid order response:', orderResponse);
+            addEventLog('ERROR', `Не удалось получить статус заказа #${orderId}`);
         }
     };
 
@@ -329,6 +338,8 @@ function startOrderStatusPolling(orderId) {
 
     // Set interval for subsequent checks
     pollingInterval = setInterval(poll, 5000);
+    
+    console.log(`Polling interval set for order ${orderId}, checking every 5 seconds`);
 }
 
 // ========================================
@@ -413,7 +424,7 @@ function showOrderStatus(order) {
     
     orderStatusCard.innerHTML = `
         <h3>Заказ #${order.id}</h3>
-        <p>Сумма: ${formatPrice(order.total_price)}</p>
+        <p>Сумма: ${formatPrice(order.total)}</p>
         <div class="status-line">
             <span>Статус:</span>
             <span id="statusValue" class="status-badge status-${status.toLowerCase()}">${getStatusText(status)}</span>
@@ -437,6 +448,7 @@ function updateOrderStatus(order) {
 
     if (!AppState.currentOrder || AppState.currentOrder.id !== order.id) {
         // This update is for an old order, ignore it.
+        console.log(`Ignoring status update for order ${order.id}, current order is ${AppState.currentOrder?.id}`);
         return;
     }
 
@@ -448,6 +460,8 @@ function updateOrderStatus(order) {
     }
     
     const currentStatus = AppState.currentOrder.status;
+
+    console.log(`Checking status update: current=${currentStatus}, new=${order.status}`);
 
     if (currentStatus !== order.status) {
         addEventLog('UPDATE', `Статус заказа изменился: ${currentStatus} -> ${order.status}`);
@@ -463,6 +477,9 @@ function updateOrderStatus(order) {
         }, 1000);
         
         AppState.currentOrder = order;
+        console.log(`Status updated successfully to: ${order.status}`);
+    } else {
+        console.log(`Status unchanged: ${order.status}`);
     }
 }
 
