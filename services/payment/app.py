@@ -426,6 +426,11 @@ class PaymentService(BaseService):
         """Call the external payment provider (mock)."""
         payment_id = payment.get('id', 'unknown')
         
+        # Check for crash test flag - force failure if address contains "123"
+        if payment.get('failure_reason') == 'CRASH_TEST_ADDRESS':
+            self.logger.warning("🧪 CRASH TEST - Forcing payment failure", payment_id=payment_id)
+            return False
+        
         # Circuit breaker check
         if not self.circuit_breaker.can_execute():
             self.logger.warning("⚡ Circuit breaker is open. Skipping payment provider call.", payment_id=payment_id)
@@ -676,10 +681,10 @@ class PaymentService(BaseService):
         amount = event_data['totalAmount']
         payment_method = event_data['paymentMethod']
         
-        # Crash test: check if delivery address contains "улица 123" to simulate payment failure
+        # Crash test: check if delivery address contains "123" to simulate payment failure
         delivery_address = event_data.get('deliveryAddress', {})
         address_str = str(delivery_address).lower()
-        is_crash_test = 'улица 123' in address_str or 'улица123' in address_str.replace(' ', '')
+        is_crash_test = '123' in address_str
         
         if is_crash_test:
             self.logger.warning(
