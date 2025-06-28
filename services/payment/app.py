@@ -324,12 +324,14 @@ class PaymentService(BaseService):
     def process_payment_async(self, payment_id: str):
         """Process payment asynchronously with retry pattern"""
         try:
-            self.logger.info("Starting async payment processing", payment_id=payment_id)
+            self.logger.info("🔄 Starting async payment processing", payment_id=payment_id)
             
             # Update status to PROCESSING
+            self.logger.info("📝 Updating payment status to PROCESSING", payment_id=payment_id)
             self.update_payment_status(payment_id, PaymentStatus.PROCESSING.value)
             
             # Process with retry pattern
+            self.logger.info("🔁 Starting retry pattern for payment", payment_id=payment_id)
             success = retry_with_backoff(
                 lambda: self.attempt_payment_processing(payment_id),
                 max_attempts=self.max_retry_attempts,
@@ -337,28 +339,34 @@ class PaymentService(BaseService):
                 max_delay=30.0
             )
             
+            self.logger.info(f"🎯 Retry pattern completed, success={success}", payment_id=payment_id)
+            
             if success:
                 # Update status to COMPLETED
+                self.logger.info("✅ Payment succeeded, updating status to COMPLETED", payment_id=payment_id)
                 self.update_payment_status(payment_id, PaymentStatus.COMPLETED.value)
                 
                 # Publish success event
+                self.logger.info("📤 Publishing payment success event", payment_id=payment_id)
                 self.publish_payment_success_event(payment_id)
                 
-                self.logger.info("Payment processing completed successfully", payment_id=payment_id)
+                self.logger.info("🎉 Payment processing completed successfully", payment_id=payment_id)
                 self.metrics.record_business_event('payment_completed', 'success')
                 
             else:
                 # Update status to FAILED
+                self.logger.error("❌ Payment failed, updating status to FAILED", payment_id=payment_id)
                 self.update_payment_status(payment_id, PaymentStatus.FAILED.value, "Payment failed after retries")
                 
                 # Publish failure event
+                self.logger.info("📤 Publishing payment failure event", payment_id=payment_id)
                 self.publish_payment_failure_event(payment_id)
                 
-                self.logger.error("Payment processing failed after retries", payment_id=payment_id)
+                self.logger.error("💥 Payment processing failed after retries", payment_id=payment_id)
                 self.metrics.record_business_event('payment_completed', 'failed')
                 
         except Exception as e:
-            self.logger.error("Payment async processing error", payment_id=payment_id, error=str(e))
+            self.logger.error("🚨 Payment async processing error", payment_id=payment_id, error=str(e), exc_info=True)
             
             # Update status to FAILED
             self.update_payment_status(payment_id, PaymentStatus.FAILED.value, str(e))
@@ -369,72 +377,102 @@ class PaymentService(BaseService):
     def attempt_payment_processing(self, payment_id: str) -> bool:
         """Attempt to process payment (with circuit breaker)"""
         try:
+            self.logger.info("🔍 Starting payment attempt", payment_id=payment_id)
+            
             # Check circuit breaker
             if not self.circuit_breaker.can_execute():
-                self.logger.warning("Circuit breaker is OPEN, payment blocked", payment_id=payment_id)
+                self.logger.warning("⚡ Circuit breaker is OPEN, payment blocked", payment_id=payment_id)
                 raise Exception("Payment provider is unavailable (circuit breaker OPEN)")
             
+            self.logger.info("✅ Circuit breaker check passed", payment_id=payment_id)
+            
             # Get payment details
+            self.logger.info("📋 Getting payment details", payment_id=payment_id)
             payment = self.get_payment_by_id(payment_id)
             if not payment:
                 raise Exception(f"Payment {payment_id} not found")
             
+            self.logger.info("✅ Payment details retrieved", payment_id=payment_id, order_id=payment.get('order_id'))
+            
             # Record payment attempt
+            self.logger.info("📝 Recording payment attempt", payment_id=payment_id)
             attempt_id = self.record_payment_attempt(payment_id)
+            self.logger.info("✅ Payment attempt recorded", payment_id=payment_id, attempt_id=attempt_id)
             
             # Call external payment provider (mocked)
+            self.logger.info("🌐 Calling payment provider", payment_id=payment_id)
             success = self.call_payment_provider(payment)
+            self.logger.info(f"🎯 Payment provider call completed, success={success}", payment_id=payment_id)
             
             if success:
                 # Record successful attempt
+                self.logger.info("✅ Recording successful attempt", payment_id=payment_id, attempt_id=attempt_id)
                 self.update_payment_attempt(attempt_id, success=True)
                 self.circuit_breaker.record_success()
                 return True
             else:
                 # Record failed attempt
+                self.logger.warning("❌ Recording failed attempt", payment_id=payment_id, attempt_id=attempt_id)
                 self.update_payment_attempt(attempt_id, success=False, error="Payment provider rejected")
                 self.circuit_breaker.record_failure()
                 raise Exception("Payment provider rejected the transaction")
                 
         except Exception as e:
-            self.logger.warning("Payment attempt failed", payment_id=payment_id, error=str(e))
+            self.logger.warning("⚠️ Payment attempt failed", payment_id=payment_id, error=str(e), exc_info=True)
             self.circuit_breaker.record_failure()
             raise
     
     def call_payment_provider(self, payment: Dict) -> bool:
         """Call the external payment provider (mock)."""
+        payment_id = payment.get('id', 'unknown')
+        
         # Circuit breaker check
         if not self.circuit_breaker.can_execute():
-            self.logger.warning("Circuit breaker is open. Skipping payment provider call.", payment_id=payment['id'])
+            self.logger.warning("⚡ Circuit breaker is open. Skipping payment provider call.", payment_id=payment_id)
             return False
 
         try:
             # The URL for the mock service endpoint
             mock_url = f"{os.getenv('PAYMENT_MOCK_URL', 'http://payment-mock:5003')}/api/v1/payments/process"
+            self.logger.info(f"🌐 Making HTTP request to payment mock", payment_id=payment_id, url=mock_url)
+            
+            payload = {
+                'order_id': payment['order_id'],
+                'amount': payment['amount'],
+                'card_details': '...sensitive data...'
+            }
+            self.logger.info(f"📦 Request payload prepared", payment_id=payment_id, payload=payload)
             
             response = requests.post(
                 mock_url,
-                json={
-                    'order_id': payment['order_id'],
-                    'amount': payment['amount'],
-                    'card_details': '...sensitive data...'
-                },
+                json=payload,
                 timeout=self.payment_timeout
             )
             
+            self.logger.info(f"📨 HTTP response received", 
+                           payment_id=payment_id, 
+                           status_code=response.status_code, 
+                           response_text=response.text[:200])
+            
             if response.status_code == 200:
+                self.logger.info("✅ Payment provider responded with success", payment_id=payment_id)
                 self.circuit_breaker.record_success()
                 return True
             else:
                 self.logger.warning(
-                    "Payment provider returned error",
+                    "❌ Payment provider returned error",
+                    payment_id=payment_id,
                     status_code=response.status_code,
                     response=response.text
                 )
                 self.circuit_breaker.record_failure()
                 return False
         except requests.exceptions.RequestException as e:
-            self.logger.error("Payment provider request failed", error=str(e))
+            self.logger.error("🚨 Payment provider request failed", payment_id=payment_id, error=str(e), exc_info=True)
+            self.circuit_breaker.record_failure()
+            return False
+        except Exception as e:
+            self.logger.error("🚨 Unexpected error in payment provider call", payment_id=payment_id, error=str(e), exc_info=True)
             self.circuit_breaker.record_failure()
             return False
     
