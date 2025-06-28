@@ -439,10 +439,31 @@ class PaymentService(BaseService):
                 self.circuit_breaker.record_success()
                 return True
             else:
+                # Check if this is a crash test (address = "123") to avoid affecting circuit breaker
+                is_crash_test = False
+                try:
+                    order = self.db.execute_query(
+                        "SELECT delivery_address FROM orders.orders WHERE id = %s",
+                        (payment.get('order_id'),),
+                        fetch='one'
+                    )
+                    if order:
+                        delivery_address_clean = str(order.get('delivery_address', '')).strip()
+                        is_crash_test = (delivery_address_clean == '123')
+                except Exception:
+                    pass
+                
                 # Record failed attempt
                 self.logger.warning("❌ Recording failed attempt", payment_id=payment_id, attempt_id=attempt_id)
                 self.update_payment_attempt(attempt_id, success=False, error="Payment provider rejected")
-                self.circuit_breaker.record_failure()
+                
+                # Only affect circuit breaker if it's not a crash test
+                if not is_crash_test:
+                    self.circuit_breaker.record_failure()
+                    self.logger.info("⚡ Circuit breaker failure recorded for real payment", payment_id=payment_id)
+                else:
+                    self.logger.info("🧪 Crash test failure - circuit breaker not affected", payment_id=payment_id)
+                
                 raise Exception("Payment provider rejected the transaction")
                 
         except Exception as e:
@@ -455,7 +476,8 @@ class PaymentService(BaseService):
         payment_id = payment.get('id', 'unknown')
         order_id = payment.get('order_id')
         
-        # Check if delivery address is "123" - force failure for testing
+        # Check if delivery address is "123" - force failure for testing (but don't affect circuit breaker)
+        is_crash_test = False
         try:
             # Get order details to check delivery address
             self.logger.info("🔍 Checking delivery address for order", payment_id=payment_id, order_id=order_id)
@@ -482,7 +504,7 @@ class PaymentService(BaseService):
                 if delivery_address_clean == '123':
                     self.logger.warning("🧪 CRASH TEST - Address is exactly '123', forcing payment failure", 
                                       payment_id=payment_id, order_id=order_id)
-                    return False
+                    is_crash_test = True
                 else:
                     self.logger.info("✅ Address is not exactly '123', proceeding with payment", 
                                    payment_id=payment_id, 
@@ -493,7 +515,11 @@ class PaymentService(BaseService):
         except Exception as e:
             self.logger.error("Failed to check delivery address", payment_id=payment_id, order_id=order_id, error=str(e))
         
-        # Circuit breaker check
+        # If it's a crash test, return failure immediately without affecting circuit breaker
+        if is_crash_test:
+            return False
+        
+        # Circuit breaker check (only for real payments, not crash tests)
         if not self.circuit_breaker.can_execute():
             self.logger.warning("⚡ Circuit breaker is open. Skipping payment provider call.", payment_id=payment_id)
             return False
