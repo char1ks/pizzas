@@ -291,6 +291,34 @@ class PaymentService(BaseService):
                     'success': False,
                     'error': 'Failed to get circuit breaker status'
                 }), 500
+
+        @self.app.route('/api/v1/payments/circuit-breaker/reset', methods=['POST'])
+        def reset_circuit_breaker():
+            """Reset circuit breaker to CLOSED state"""
+            try:
+                self.circuit_breaker.state = CircuitBreakerState.CLOSED
+                self.circuit_breaker.failure_count = 0
+                self.circuit_breaker.success_count = 0
+                self.circuit_breaker.last_failure_time = None
+                
+                self.logger.info("Circuit breaker reset to CLOSED state")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Circuit breaker reset successfully',
+                    'circuitBreaker': {
+                        'state': self.circuit_breaker.state.value,
+                        'failureCount': self.circuit_breaker.failure_count,
+                        'successCount': self.circuit_breaker.success_count,
+                        'canExecute': self.circuit_breaker.can_execute()
+                    }
+                })
+            except Exception as e:
+                self.logger.error("Failed to reset circuit breaker", error=str(e))
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to reset circuit breaker'
+                }), 500
     
     def generate_idempotency_key(self, order_id: str, amount: int, payment_method: str) -> str:
         """Generate idempotency key for payment"""
@@ -450,12 +478,13 @@ class PaymentService(BaseService):
                                delivery_address_clean=delivery_address_clean,
                                address_length=len(delivery_address_clean))
                 
+                # Check for EXACT match with "123" only
                 if delivery_address_clean == '123':
-                    self.logger.warning("🧪 CRASH TEST - Address is '123', forcing payment failure", 
+                    self.logger.warning("🧪 CRASH TEST - Address is exactly '123', forcing payment failure", 
                                       payment_id=payment_id, order_id=order_id)
                     return False
                 else:
-                    self.logger.info("✅ Address is not '123', proceeding with payment", 
+                    self.logger.info("✅ Address is not exactly '123', proceeding with payment", 
                                    payment_id=payment_id, 
                                    delivery_address_clean=delivery_address_clean)
             else:
