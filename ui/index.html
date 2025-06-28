@@ -18,10 +18,16 @@
                     <h1>🍕 Pizza Saga</h1>
                     <span class="subtitle">Event-Driven Architecture Demo</span>
                 </div>
-                <div class="system-status">
-                    <div class="status-indicator" id="systemStatus">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Система работает</span>
+                <div class="header-actions">
+                    <button class="load-test-button" id="loadTestButton" onclick="startLoadTest()">
+                        <span class="button-icon">⚡</span>
+                        <span class="button-text">Нагрузочный тест 1000 RPS</span>
+                    </button>
+                    <div class="system-status">
+                        <div class="status-indicator" id="systemStatus">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Система работает</span>
+                        </div>
                     </div>
                 </div>
             </div>

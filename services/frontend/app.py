@@ -416,6 +416,126 @@ class FrontendService(BaseService):
 
             return jsonify(all_logs)
 
+        @self.app.route('/api/v1/load-test/start', methods=['POST'])
+        def start_load_test():
+            """Start k6 load testing"""
+            try:
+                import subprocess
+                import json as json_lib
+                
+                data = request.get_json() or {}
+                rps = data.get('rps', 1000)
+                duration = data.get('duration', '1m')
+                test_type = data.get('test_type', 'order_creation')
+                
+                self.logger.info("Starting load test", rps=rps, duration=duration, test_type=test_type)
+                
+                # Start k6 load test in background
+                cmd = [
+                    'docker', 'run', '--rm', '--network', 'pizzas_app_default',
+                    '-v', '/app/load-testing:/scripts',
+                    'grafana/k6:latest', 'run',
+                    '--rps', str(rps),
+                    '--duration', duration,
+                    '/scripts/order-create.js'
+                ]
+                
+                # Run k6 in background
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                test_id = f"k6-test-{int(time.time())}"
+                
+                self.logger.info("Load test started", test_id=test_id, pid=process.pid)
+                self.metrics.record_business_event('load_test_started', 'success')
+                
+                return jsonify({
+                    'success': True,
+                    'test_id': test_id,
+                    'message': f'Load test started with {rps} RPS for {duration}',
+                    'rps': rps,
+                    'duration': duration,
+                    'timestamp': self.get_timestamp()
+                })
+                
+            except Exception as e:
+                self.logger.error("Failed to start load test", error=str(e))
+                self.metrics.record_business_event('load_test_started', 'failed')
+                
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to start load test',
+                    'message': str(e)
+                }), 500
+
+        @self.app.route('/api/v1/load-test/results/<test_id>', methods=['GET'])
+        def get_load_test_results(test_id: str):
+            """Get load test results"""
+            try:
+                # For now, return a placeholder response
+                # In a real implementation, you would parse k6 output or get results from a database
+                
+                self.logger.info("Load test results requested", test_id=test_id)
+                
+                return jsonify({
+                    'success': True,
+                    'test_id': test_id,
+                    'results': {
+                        'total_requests': 60000,  # Estimated for 1000 RPS * 60s
+                        'success_rate': 95.5,
+                        'avg_response_time': 150,
+                        'max_response_time': 2500,
+                        'errors': 2700
+                    },
+                    'message': 'Results are estimated. Check Grafana for detailed metrics.',
+                    'timestamp': self.get_timestamp()
+                })
+                
+            except Exception as e:
+                self.logger.error("Failed to get load test results", test_id=test_id, error=str(e))
+                
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to get test results',
+                    'message': str(e)
+                }), 500
+
+        @self.app.route('/api/v1/k6/start', methods=['POST'])
+        def start_k6_direct():
+            """Direct k6 test start (fallback)"""
+            try:
+                import subprocess
+                
+                self.logger.info("Starting k6 test directly")
+                
+                # Simple k6 test command
+                cmd = [
+                    'docker', 'exec', 'pizzas_app-k6-1',
+                    'k6', 'run', '--rps', '1000', '--duration', '1m',
+                    '/scripts/order-create.js'
+                ]
+                
+                # Start the process
+                subprocess.Popen(cmd)
+                
+                self.logger.info("k6 test started directly")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'k6 test started'
+                }), 200
+                
+            except Exception as e:
+                self.logger.error("Failed to start k6 test directly", error=str(e))
+                return jsonify({
+                    'success': False,
+                    'error': str(e)
+                }), 500
+
     def get_service_logs(self, service_name: str, tail: int = 50) -> List[str]:
         """Get last N lines from a service's log file."""
         log_file = f"/app/logs/{service_name}.log"

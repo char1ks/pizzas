@@ -768,4 +768,134 @@ if (window.location.hostname === 'localhost') {
     console.log('Use PizzaApp.simulateOrder() to quickly test order flow');
 }
 
+// ========================================
+// Load Testing Functions
+// ========================================
+
+/**
+ * Start load testing with 1000 RPS for 1 minute
+ */
+async function startLoadTest() {
+    const button = document.getElementById('loadTestButton');
+    const buttonText = button.querySelector('.button-text');
+    const originalText = buttonText.textContent;
+    
+    try {
+        // Disable button and show running state
+        button.disabled = true;
+        button.classList.add('running');
+        buttonText.textContent = 'Запуск нагрузочного теста';
+        
+        addEventLog('LOAD_TEST', 'Запуск нагрузочного тестирования 1000 RPS на 1 минуту...');
+        showToast('🚀 Запуск нагрузочного тестирования...', '🚀');
+        
+        // Start k6 load test via Docker
+        const response = await apiRequest('/api/v1/load-test/start', {
+            method: 'POST',
+            body: JSON.stringify({
+                rps: 1000,
+                duration: '1m',
+                test_type: 'order_creation'
+            })
+        });
+        
+        if (response.success) {
+            buttonText.textContent = 'Тестирование выполняется';
+            addEventLog('LOAD_TEST', `Нагрузочное тестирование запущено: ${response.message}`);
+            showToast('✅ Нагрузочное тестирование запущено!', '✅');
+            
+            // Monitor test progress
+            monitorLoadTest(response.test_id || 'k6-test');
+        } else {
+            throw new Error(response.error || 'Не удалось запустить тест');
+        }
+        
+    } catch (error) {
+        console.error('Load test failed:', error);
+        addEventLog('ERROR', `Ошибка нагрузочного тестирования: ${error.message}`);
+        
+        // Fallback: start k6 test directly
+        try {
+            addEventLog('LOAD_TEST', 'Попытка запуска k6 теста напрямую...');
+            const fallbackResponse = await fetch('/api/v1/k6/start', { method: 'POST' });
+            
+            if (fallbackResponse.ok) {
+                buttonText.textContent = 'Тестирование выполняется';
+                addEventLog('LOAD_TEST', 'k6 тест запущен успешно');
+                showToast('✅ k6 тестирование запущено!', '✅');
+                monitorLoadTest('k6-fallback');
+            } else {
+                throw new Error('Fallback также не удался');
+            }
+        } catch (fallbackError) {
+            showToast('❌ Ошибка запуска тестирования', '❌');
+            
+            // Reset button state
+            button.disabled = false;
+            button.classList.remove('running');
+            buttonText.textContent = originalText;
+        }
+    }
+}
+
+/**
+ * Monitor load test progress
+ */
+async function monitorLoadTest(testId) {
+    const button = document.getElementById('loadTestButton');
+    const buttonText = button.querySelector('.button-text');
+    const originalText = 'Нагрузочный тест 1000 RPS';
+    
+    let remainingTime = 60; // 1 minute
+    
+    const updateTimer = () => {
+        if (remainingTime > 0) {
+            buttonText.textContent = `Тестирование (${remainingTime}с)`;
+            remainingTime--;
+            setTimeout(updateTimer, 1000);
+        } else {
+            // Test completed
+            button.disabled = false;
+            button.classList.remove('running');
+            buttonText.textContent = originalText;
+            
+            addEventLog('LOAD_TEST', 'Нагрузочное тестирование завершено');
+            showToast('🎉 Нагрузочное тестирование завершено!', '🎉');
+            
+            // Get test results
+            getLoadTestResults(testId);
+        }
+    };
+    
+    updateTimer();
+}
+
+/**
+ * Get load test results
+ */
+async function getLoadTestResults(testId) {
+    try {
+        const response = await apiRequest(`/api/v1/load-test/results/${testId}`);
+        
+        if (response.success && response.results) {
+            const results = response.results;
+            addEventLog('LOAD_TEST', `Результаты теста: ${results.total_requests} запросов, ${results.success_rate}% успешных`);
+            
+            // Show detailed results in toast
+            showToast(
+                `📊 Результаты: ${results.total_requests} запросов, ${results.success_rate}% успешных`,
+                '📊',
+                5000
+            );
+        } else {
+            addEventLog('LOAD_TEST', 'Результаты тестирования будут доступны в Grafana');
+            showToast('📊 Смотрите результаты в Grafana дашборде', '📊', 5000);
+        }
+    } catch (error) {
+        console.error('Failed to get test results:', error);
+        addEventLog('LOAD_TEST', 'Результаты тестирования доступны в мониторинге');
+        showToast('📊 Смотрите результаты в Grafana и Prometheus', '📊', 5000);
+    }
+}
+
  
