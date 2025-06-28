@@ -259,6 +259,7 @@ services:
   k6:
     image: grafana/k6:latest
     container_name: k6
+    profiles: ["tools"]
     ports:
       - "6565:6565" # k6 API server
     volumes:
@@ -268,8 +269,7 @@ services:
     depends_on:
       - nginx
       - order-service
-    # Command to run the test:
-    # docker-compose run k6 run /scripts/order-create.js
+    # To run the test: docker-compose run --build k6 run /scripts/order-create.js
     entrypoint: [""] # Disable default entrypoint
 
   # ========================
@@ -453,37 +453,6 @@ services:
     networks:
       - pizza-network
 
-  # Load Testing Tool (Optional)
-  loadtest:
-    image: alpine/curl:latest
-    container_name: loadtest
-    profiles: ["tools"]
-    entrypoint: ["/bin/sh"]
-    command: |
-      -c "
-      echo 'Load testing tool ready. Use: docker exec -it loadtest sh'
-      sleep infinity
-      "
-    networks:
-      - pizza-network
-
-  # ========================
-  # APPLICATION SERVICES
-  # ========================
-
-  # k6 Load Tester
-  k6:
-    image: grafana/k6:latest
-    container_name: k6
-    ports:
-      - "6565:6565" # k6 API server
-    volumes:
-      - ./load-testing:/scripts
-    networks:
-      - pizza-network
-    depends_on:
-      - nginx
-      - order-service
-    # Command to run the test:
-    # docker-compose run k6 run /scripts/order-create.js
-    entrypoint: [""] # Disable default entrypoint 
+# ========================
+# TOOLS & UTILITIES
+# ======================== 

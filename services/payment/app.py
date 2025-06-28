@@ -607,16 +607,16 @@ class PaymentService(BaseService):
     
     def handle_order_event(self, topic: str, event_data: Dict, key: str):
         """Handle order events (e.g., OrderCreated)"""
-            event_type = event_data.get('event_type')
+        event_type = event_data.get('event_type')
         # Handle both 'orderId' (from outbox) and 'order_id' (from other potential events)
         order_id = event_data.get('orderId') or event_data.get('order_id')
             
-            self.logger.info(
-            "📥 Received new order event from Kafka",
-                event_type=event_type,
-            order_id=order_id,
-            message="POLL detected new event from order-events topic"
-            )
+        self.logger.info(
+        "📥 Received new order event from Kafka",
+            event_type=event_type,
+        order_id=order_id,
+        message="POLL detected new event from order-events topic"
+        )
             
         try:
             if event_type == 'OrderCreated':
@@ -632,8 +632,8 @@ class PaymentService(BaseService):
     def handle_order_created(self, event_data: Dict, order_id: str):
         """Handle OrderCreated event to initiate payment."""
         if not all(k in event_data for k in ['totalAmount', 'paymentMethod', 'userId']):
-                self.logger.warning("Incomplete order data for payment", event_data=event_data)
-                return
+            self.logger.warning("Incomplete order data for payment", event_data=event_data)
+            return
             
         amount = event_data['totalAmount']
         payment_method = event_data['paymentMethod']
@@ -654,11 +654,11 @@ class PaymentService(BaseService):
         # Check for existing payment (idempotency)
         if self.get_payment_by_order_id(order_id):
             self.logger.info("Payment already initiated for order", order_id=order_id)
-                return
+            return
             
         # Create payment record
         payment_id = generate_id('pay_')
-            idempotency_key = self.generate_idempotency_key(order_id, amount, payment_method)
+        idempotency_key = self.generate_idempotency_key(order_id, amount, payment_method)
             
         payment_record = self.create_payment_record(
             payment_id=payment_id,
