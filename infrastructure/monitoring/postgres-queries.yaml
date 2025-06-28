@@ -41,7 +41,7 @@ pizza_orders_metrics:
       status,
       COUNT(*) as count,
       COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))), 0) as avg_processing_time_seconds,
-      COALESCE(SUM(total_amount), 0) as total_revenue_cents
+      COALESCE(SUM(total_price), 0) as total_revenue_cents
     FROM orders.orders
     WHERE created_at >= NOW() - INTERVAL '1 hour'
     GROUP BY status
@@ -51,7 +51,7 @@ pizza_orders_metrics:
       'all' as status,
       COUNT(*) as count,
       COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))), 0) as avg_processing_time_seconds,
-      COALESCE(SUM(total_amount), 0) as total_revenue_cents
+      COALESCE(SUM(total_price), 0) as total_revenue_cents
     FROM orders.orders
     WHERE created_at >= NOW() - INTERVAL '1 hour'
   metrics:
@@ -78,7 +78,7 @@ pizza_payments_metrics:
       status,
       COUNT(*) as count,
       COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at))), 0) as avg_processing_time_seconds
-    FROM payment.payment_attempts
+    FROM payments.payment_attempts
     WHERE created_at >= NOW() - INTERVAL '1 hour'
     GROUP BY status
   metrics:
