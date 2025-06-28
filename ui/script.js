@@ -265,8 +265,8 @@ async function createOrder() {
         }
 
         // Extract the actual order object from the response
-        const orderData_full = fullOrderResponse.order;
-        AppState.currentOrder = orderData_full;
+        const orderObject = fullOrderResponse.order;
+        AppState.currentOrder = orderObject;
         
         // Clear cart and form
         AppState.cart = [];
@@ -274,10 +274,10 @@ async function createOrder() {
         updateCartDisplay();
         
         // Show order status with complete data
-        showOrderStatus(orderData_full);
+        showOrderStatus(orderObject);
         
         // Start polling for order status using the correct order ID
-        startOrderStatusPolling(orderData_full.id);
+        startOrderStatusPolling(orderObject.id);
         
     } catch (error) {
         addEventLog('ERROR', `Ошибка создания заказа: ${error.message}`);
@@ -413,7 +413,7 @@ function showOrderStatus(order) {
     
     orderStatusCard.innerHTML = `
         <h3>Заказ #${order.id}</h3>
-        <p>Сумма: ${formatPrice(order.total)}</p>
+        <p>Сумма: ${formatPrice(order.total_price)}</p>
         <div class="status-line">
             <span>Статус:</span>
             <span id="statusValue" class="status-badge status-${status.toLowerCase()}">${getStatusText(status)}</span>
@@ -436,12 +436,14 @@ function updateOrderStatus(order) {
     }
 
     if (!AppState.currentOrder || AppState.currentOrder.id !== order.id) {
+        // This update is for an old order, ignore it.
         return;
     }
 
     const statusValue = document.getElementById('statusValue');
     // Gracefully handle if the element is not found
     if (!statusValue) {
+        console.error('Could not find statusValue element to update.');
         return;
     }
     
