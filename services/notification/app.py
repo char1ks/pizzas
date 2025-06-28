@@ -184,7 +184,7 @@ class NotificationService(BaseService):
                     'error': 'Failed to queue notification',
                     'message': str(e)
                 }), 500
-
+    
     def create_notification_record(self, notification_id: str, user_id: str, order_id: str,
                                   subject: str, message: str, channels: List[str], priority: str,
                                   template_type: str = None) -> Dict:
@@ -204,7 +204,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to create notification record", error=str(e))
             raise
-
+    
     def send_notification_async(self, notification_id: str):
         """Send notification through all specified channels asynchronously"""
         try:
@@ -260,7 +260,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Notification async sending error", notification_id=notification_id, error=str(e))
             self.update_notification_status(notification_id, NotificationStatus.FAILED.value)
-
+    
     def send_through_channel(self, notification: Dict, channel: str, contact_info: Dict) -> bool:
         """Send notification through specific channel"""
         try:
@@ -296,7 +296,7 @@ class NotificationService(BaseService):
                 error=str(e)
             )
             return False
-
+    
     def send_email_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send email notification (mocked implementation)"""
         try:
@@ -320,7 +320,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Email sending failed", error=str(e))
             return False
-
+    
     def send_sms_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send SMS notification (mocked implementation)"""
         try:
@@ -344,7 +344,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("SMS sending failed", error=str(e))
             return False
-
+    
     def send_push_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send push notification (mocked implementation)"""
         try:
@@ -368,7 +368,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Push notification sending failed", error=str(e))
             return False
-
+    
     def send_webhook_notification(self, notification: Dict, contact_info: Dict) -> bool:
         """Send webhook notification"""
         try:
@@ -410,7 +410,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Webhook notification sending failed", error=str(e))
             return False
-
+    
     def get_user_contact_info(self, user_id: str) -> Dict:
         """Get user contact information (mocked implementation)"""
         # In real implementation, this would query user service or database
@@ -420,7 +420,7 @@ class NotificationService(BaseService):
             'device_tokens': [f"device_token_{user_id}_1", f"device_token_{user_id}_2"],
             'webhook_url': f"https://webhook.example.com/users/{user_id}/notifications"
         }
-
+    
     def record_delivery_attempt(self, notification_id: str, channel: str) -> int:
         """Record delivery attempt in database"""
         try:
@@ -441,7 +441,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to record delivery attempt", error=str(e))
             raise
-
+    
     def update_delivery_attempt(self, attempt_id: int, success: bool, error_message: str = None):
         """Update delivery attempt result"""
         try:
@@ -455,7 +455,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to update delivery attempt", error=str(e))
             raise
-
+    
     def get_notification_by_id(self, notification_id: str) -> Optional[Dict]:
         """Get notification by ID"""
         try:
@@ -468,7 +468,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to get notification by ID", notification_id=notification_id, error=str(e))
             raise
-
+    
     def update_notification_status(self, notification_id: str, status: str):
         """Update notification status"""
         try:
@@ -479,12 +479,12 @@ class NotificationService(BaseService):
                     WHERE id = %s
                 """, (status, notification_id))
                 
-            self.logger.info("Notification status updated", notification_id=notification_id, status=status)
-            
+                self.logger.info("Notification status updated", notification_id=notification_id, status=status)
+                
         except Exception as e:
             self.logger.error("Failed to update notification status", notification_id=notification_id, error=str(e))
             raise
-
+    
     def start_event_consumer(self):
         """Start a background thread to consume Kafka events"""
         def consume_events():
@@ -506,12 +506,12 @@ class NotificationService(BaseService):
         consumer_thread = threading.Thread(target=consume_events, daemon=True)
         consumer_thread.start()
         self.logger.info("Event consumer thread started")
-
+    
     def handle_event(self, topic: str, event_data: Dict, key: str):
         """Handle events from Kafka by generating notifications."""
-        event_type = event_data.get('event_type')
+            event_type = event_data.get('event_type')
         order_id = event_data.get('orderId') or event_data.get('order_id')
-        
+            
         self.logger.info("Processing event for notification", topic=topic, event_type=event_type, order_id=order_id)
         
         try:
@@ -526,7 +526,7 @@ class NotificationService(BaseService):
             
         except Exception as e:
             self.logger.error(f"Failed to handle {event_type}", error=str(e), order_id=order_id)
-
+    
     def handle_order_created(self, event_data: Dict):
         """Handle OrderCreated event."""
         user_id = event_data.get('userId', 'anonymous')
@@ -545,18 +545,18 @@ class NotificationService(BaseService):
         subject = template['title_template'].format(**event_data)
 
         self.save_notification(
-            user_id=user_id,
-            order_id=order_id,
+                user_id=user_id,
+                order_id=order_id,
             template_type='OrderCreated',
             subject=subject,
             message=message,
             metadata=event_data
         )
-
+    
     def handle_order_paid(self, event_data: Dict):
         """Handle OrderPaid event (successful payment)."""
         user_id = event_data.get('user_id', 'anonymous')
-        order_id = event_data.get('order_id')
+            order_id = event_data.get('order_id')
         
         if not order_id:
             self.logger.warning("OrderPaid event missing order_id", event_data=event_data)
@@ -568,10 +568,10 @@ class NotificationService(BaseService):
 
         message = template['message_template'].format(**event_data)
         subject = template['title_template'].format(**event_data)
-        
+            
         self.save_notification(
-            user_id=user_id,
-            order_id=order_id,
+                user_id=user_id,
+                order_id=order_id,
             template_type='OrderPaid',
             subject=subject,
             message=message,
@@ -636,7 +636,7 @@ class NotificationService(BaseService):
         except Exception as e:
             self.logger.error("Failed to save notification", order_id=order_id, error=str(e))
             return None
-
+    
     def get_timestamp(self) -> str:
         """Get current timestamp in ISO format"""
         return datetime.now(timezone.utc).isoformat()

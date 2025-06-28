@@ -248,12 +248,29 @@ services:
       - /:/rootfs:ro
       - /var/run:/var/run:rw
       - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    devices:
-      - /dev/kmsg:/dev/kmsg
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=false'
+      - '--whitelisted_container_labels=io.kubernetes.pod.namespace,io.kubernetes.pod.name,io.kubernetes.container.name'
     networks:
       - pizza-network
+
+  # k6 Load Tester
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    ports:
+      - "6565:6565" # k6 API server
+    volumes:
+      - ./load-testing:/scripts
+    networks:
+      - pizza-network
+    depends_on:
+      - nginx
+      - order-service
+    # Command to run the test:
+    # docker-compose run k6 run /scripts/order-create.js
+    entrypoint: [""] # Disable default entrypoint
 
   # ========================
   # MICROSERVICES
@@ -448,4 +465,25 @@ services:
       sleep infinity
       "
     networks:
-      - pizza-network 
+      - pizza-network
+
+  # ========================
+  # APPLICATION SERVICES
+  # ========================
+
+  # k6 Load Tester
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    ports:
+      - "6565:6565" # k6 API server
+    volumes:
+      - ./load-testing:/scripts
+    networks:
+      - pizza-network
+    depends_on:
+      - nginx
+      - order-service
+    # Command to run the test:
+    # docker-compose run k6 run /scripts/order-create.js
+    entrypoint: [""] # Disable default entrypoint 
