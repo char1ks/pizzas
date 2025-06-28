@@ -425,11 +425,24 @@ class PaymentService(BaseService):
     def call_payment_provider(self, payment: Dict) -> bool:
         """Call the external payment provider (mock)."""
         payment_id = payment.get('id', 'unknown')
+        order_id = payment.get('order_id')
         
-        # Check for crash test flag - force failure if address contains "123"
-        if payment.get('failure_reason') == 'CRASH_TEST_ADDRESS':
-            self.logger.warning("🧪 CRASH TEST - Forcing payment failure", payment_id=payment_id)
-            return False
+        # Check if delivery address is "123" - force failure for testing
+        try:
+            # Get order details to check delivery address
+            order = self.db.execute_query(
+                "SELECT delivery_address FROM orders.orders WHERE id = %s",
+                (order_id,),
+                fetch='one'
+            )
+            
+            if order and order.get('delivery_address') == '123':
+                self.logger.warning("🧪 CRASH TEST - Address is '123', forcing payment failure", 
+                                  payment_id=payment_id, order_id=order_id)
+                return False
+                
+        except Exception as e:
+            self.logger.error("Failed to check delivery address", payment_id=payment_id, error=str(e))
         
         # Circuit breaker check
         if not self.circuit_breaker.can_execute():
@@ -681,18 +694,11 @@ class PaymentService(BaseService):
         amount = event_data['totalAmount']
         payment_method = event_data['paymentMethod']
         
-        # Crash test: check if delivery address contains "123" to simulate payment failure
+        # Log delivery address for debugging
         delivery_address = event_data.get('deliveryAddress', {})
-        address_str = str(delivery_address).lower()
-        is_crash_test = '123' in address_str
-        
-        if is_crash_test:
-            self.logger.warning(
-                "🧪 CRASH TEST DETECTED - Payment will fail",
-                order_id=order_id,
-                delivery_address=delivery_address,
-                message="Address contains 'улица 123' - simulating payment failure"
-            )
+        self.logger.info("📍 Order delivery address", 
+                        order_id=order_id, 
+                        delivery_address=delivery_address)
 
         # Check for existing payment (idempotency)
         if self.get_payment_by_order_id(order_id):
@@ -711,13 +717,7 @@ class PaymentService(BaseService):
             idempotency_key=idempotency_key
         )
         
-        # Store crash test flag in payment record for later use
-        if is_crash_test:
-            with self.db.transaction():
-                with self.db.get_cursor() as cursor:
-                    cursor.execute("""
-                        UPDATE payments SET failure_reason = %s WHERE id = %s
-                    """, ('CRASH_TEST_ADDRESS', payment_id))
+
         
         # Start async payment processing (for ALL orders, not just crash tests)
         threading.Thread(
